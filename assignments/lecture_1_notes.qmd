@@ -1,0 +1,32 @@
+---
+title: "Lecture 1 Notes"
+format: 
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+editor: visual
+self-contained: true
+---
+
+# Set-up
+
+```{r}
+#| label: set-up
+library(astsa)
+```
+
+# Examples
+## Example 1.1
+
+```{r}
+par(mfrow=2:1)
+tsplot(jj, ylab="QEPS", type="o", col=4, main="Johnson & Johnson Quarterly Earnings")
+tsplot(log(jj), ylab="log(QEPS)", type="o", col=4)
+```
+
+Predict the QEPS in 1985.
+
+
+
+
