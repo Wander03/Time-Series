@@ -1,0 +1,204 @@
+---
+title: "Stat 416 Assignment 1 Due Monday, September 30 at 11:59:59PM"
+author: "Andrew Kerr"
+embed-resources: true
+---
+
+A paper I worked on as a research scientist considered the time series of the concentration (measured as $\log_{10}$ copies per Liter) of the SARS-CoV-2 virus from 5 different locations in the City of Houston, visualized in parts (c)-(g) of the figure below.
+
+The goal of this study was to see whether the information gleaned from sampling the lift stations, which represent smaller populations, was different than the information gleaned from sampling only the larger wastewater treatment plant. In other words, one research question was to determine whether the WWTP (dark blue) time series has different dynamics (behavior) than those that represent the lift stations.
+
+The methods in this paper are touched on in chapter 8 of our textbook. For this assignment, we will use the wastewater data as an example and practice our plotting and time series data science skills.
+
+![(a) The WWTP catchment areas for the City of Houston, with the WWTP of focus shaded. The box shows the extent of (b), the map showing the 4 lift stations considered in the analysis. (c–g) Plot the time series of Log10 Copies/L for the WWTP and the 4 lift station facilities, referred to as Lift Station A–D, with periods of missing values indicated by grey rectangles.](https://media.springernature.com/full/springer-static/image/art%3A10.1038%2Fs41598-024-56175-2/MediaObjects/41598_2024_56175_Fig1_HTML.png)
+
+1.  \[6 points\] Which of the time series has the most missing data? Which appears to have the most variability? Does the overall behavior of the series seem to be similar?
+
+    Lift station B (time series d) appears to have the most missing data, while Lift station D (time series f) has the most variability. The overall behaviors of the series does appear to be similar, with an increase around Jan '22 followed by a drop and an "evening out" afterwords.
+
+2.  \[5 points\] Load the (synthetic) wastewater data from <https://raw.githubusercontent.com/hou-wastewater-epi-org/online_trend_estimation/refs/heads/main/Data/synthetic_ww_time_series.csv> using the `read.csv` function
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| label: part 2
+    ww <- read.csv('https://raw.githubusercontent.com/hou-wastewater-epi-org/online_trend_estimation/refs/heads/main/Data/synthetic_ww_time_series.csv')
+    ```
+
+3.  \[5 points\] Inspect the data. Verify that each of the series from the map above are included in the .csv (hint: what are the unique values of the `name` field?)
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| label: part3
+
+    unique(ww['name'])
+    ```
+
+4.  \[5 points\] Convert the date field to a Date format using the function as.Date.
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| label: part4
+
+    ww$dates <- as.Date(ww$dates)
+    ```
+
+5.  \[2 points\] Install and load the `tidyverse` package.
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| message: false
+    #| label: part5
+
+    # install.packages('tidyverse')
+    library(tidyverse)
+    ```
+
+6.  \[5 points\] We will work with just the WWTP series for now. Use `dplyr::filter` to extract the values for just the WWTP series.
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| label: part6
+
+    ww_WWTP <- ww %>% dplyr::filter(name == 'WWTP')
+    ```
+
+7.  \[10 points\] What is the time interval between the observations? How do you know?
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| label: part7
+
+    difftime(ww_WWTP$dates, lag(ww_WWTP$dates), units = 'days')
+    ```
+
+    The time interval between observations is 7 days. I found this by subtracting the date from the previous observations date for each observation (aside from the first observation).
+
+8.  \[10 points total\] Use the `tsplot` function from the `astsa` package to plot the `WWTP` series \[5 points\].
+
+    Make sure to use the `dates` \[2 points\]field for the x-axis and specify good axis and plot labels using the `xlab`/`ylab`, and `main` arguments \[1 point each\]. (see the documentation `?tsplot` for more)
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| label: part8
+
+    with(ww_WWTP, 
+         astsa::tsplot(
+           x = dates, 
+           y = value,
+           xlab = 'Date',
+           ylab = 'log10 copies per Liter of SARS-CoV2',
+           main = 'WWTP'
+           )
+         )
+    ```
+
+9.  \[10 points\] Apply a moving average filter with 3 time points using the stats::filter function and save the result in a vector called `ww_ma_3`. (Similar to the final part of problem 1.1, see [here](http://localhost:4512/LectureNotes/Lecture2.html#moving-averages-problem-1.1-part-c) in Lecture Notes).
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| label: part9
+
+    library(astsa)
+    ww_ma_3 <- stats::filter(
+      ww_WWTP$value, # values to use
+      filter = rep(1/3, 3), # value = coef, length = # of time points
+      sides = 1, # only do past values
+      method = 'convolution') #do moving average
+    ```
+
+10. \[10 points\] Plot the moving average you computed on top of the tsplot in a different color using the lines function (see linked Problem 1.1 above). In the call to the lines function, also use `type = l` and `lwd = 2`.
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| label: part10
+
+
+    with(ww_WWTP, 
+         astsa::tsplot(
+           x = dates, 
+           y = value,
+           xlab = 'Date',
+           ylab = 'log10 copies per Liter of SARS-CoV2',
+           main = 'WWTP with 3 point moving average'
+           )
+         )
+
+    # Align dates and moving average (ensure ww_ma_3 has no NA values)
+    # lines() Would not work with NAs in the middle of the time series
+    dates_clean <- ww_WWTP$dates[!is.na(ww_ma_3)]
+    ww_ma_3_clean <- ww_ma_3[!is.na(ww_ma_3)]
+
+    lines(dates_clean, ww_ma_3_clean, col = 'firebrick', type = 'l', lwd = 2)
+    ```
+
+11. 15 points\] Apply the moving average filter again, but this time use 5 time points, call it `ww_ma_5`. Plot just the `WWTP` series data and the `ww_ma_5` you just computed, and use a different color for this MA process than you used in question 10.
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| label: part11
+
+    ww_ma_5 <- stats::filter(
+      ww_WWTP$value, # values to use
+      filter = rep(1/5, 5), # value = coef, length = # of time points
+      sides = 1, # only do past values
+      method = 'convolution') #do moving average
+
+    with(ww_WWTP, 
+         astsa::tsplot(
+           x = dates, 
+           y = value,
+           xlab = 'Date',
+           ylab = 'log10 copies per Liter of SARS-CoV2',
+           main = 'WWTP with 5 point moving average'
+           )
+         )
+
+    # Align dates and moving average (ensure ww_ma_5 has no NA values)
+    # lines() Would not work with NAs in the middle of the time series
+    dates_clean <- ww_WWTP$dates[!is.na(ww_ma_5)]
+    ww_ma_5_clean <- ww_ma_5[!is.na(ww_ma_5)]
+
+    lines(dates_clean, ww_ma_5_clean, col = 'cornflowerblue', type = 'l', lwd = 2)
+    ```
+
+12. \[5 points\] Inspect the plot you generated in questions 10 and 11. Which MA process looks "smoother"?
+
+    The 5 point moving average looks smoother!
+
+13. \[10 points\] Describe the different way that the missing data in the WWTP series impacts the moving average estimates for the case of 3 time points vs. 5 time points.
+
+    ```{r}
+    #| echo: true
+    #| eval: true
+    #| label: part13
+
+    with(ww_WWTP, 
+         astsa::tsplot(
+           x = value,
+           xlab = 'Time',
+           ylab = 'log10 copies per Liter of SARS-CoV2',
+           main = 'WWTP with 3 and 5 point moving averages'
+           )
+         )
+
+    # I do not need to remove NA values if I do not set the x-axis...hmm...
+
+    lines(ww_ma_3, col = 'firebrick', type = 'l', lwd = 2)
+    lines(ww_ma_5, col = 'cornflowerblue', type = 'l', lwd = 2)
+    ```
+
+    The missing data impacts the moving average estimates for the 5 time points case more than the 3 times points case. When missing data appears, both stop at the same points, however since more data is needed for each average in the 5 point case, this moving average picks up later than the 3 point.
+
+14. \[5 points\] Note that the data you used for this activity was "synthetic" wastewater data. Why might a researcher share a synthetic version of their data? What do you think that might mean?
+
+    Synthetic data is data that resembles the original data, but does not include any real data. A researcher might share synthetic data to protect confidential information while keeping any statistical properties that may be found in the data, allowing other researchers to examine the data or practice statistical techniques on the data without exposing confidential information. In short, it is a way to protect who or what is recorded in the data.
