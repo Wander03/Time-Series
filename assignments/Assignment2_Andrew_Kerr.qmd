@@ -39,7 +39,7 @@ $$
 
     Since $cov(X + a, Y + b) = cov(X, Y)$, where $X$ and $Y$ are random variables and $a$ and $b$ are constants, we can say
 
-    $cov(2\cos(2\pi\frac{s+15}{50}) + w_s, 2\cos(2\pi\frac{t+15}{50}) + w_t) = cov(w_s, w_t) = \sigma^2_w if s = t and 0 if s \ne t$
+    $cov(2\cos(2\pi\frac{s+15}{50}) + w_s, 2\cos(2\pi\frac{t+15}{50}) + w_t) = cov(w_s, w_t) = \sigma^2_w$ if $s = t$ and $0$ if $s \ne t$
 
 4.  \[6 points\] Consider the model:
 
