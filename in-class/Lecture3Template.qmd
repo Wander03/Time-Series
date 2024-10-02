@@ -112,7 +112,7 @@ Which series are stationary? How can you tell?
 ### Solution
 
 |   | Stationary? | Notes |
-|------------------------|------------------------|------------------------|
+|----|----|----|
 | \(a\) | No | mean function changes |
 | \(b\) | Yes |  |
 | \(c\) | No | mean |
