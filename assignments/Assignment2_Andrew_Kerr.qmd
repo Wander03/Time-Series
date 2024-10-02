@@ -69,7 +69,7 @@ Note: I have set the code chunks here to have `eval: false` in the code chunk. C
 #| echo: true
 library(astsa)
 set.seed(123)
-w <- rnorm(10)
+w <- rnorm(100)
 x_t <- stats::filter(
   w, # values to use
   filter = .7, # value = coef
@@ -166,7 +166,7 @@ acf(x_t)
 acf(linear_model$residuals)
 ```
 
-The acf plot of the residuals looks more like white noise. This tells me that the temporal structure is linear since the linear model captures it. ??????????????
+The acf plot of the residuals looks more like white noise. This tells me that the linear model captures more of the temporal structure.
 
 ## Part 3: Reading
 
