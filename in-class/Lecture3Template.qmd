@@ -112,7 +112,7 @@ Which series are stationary? How can you tell?
 ### Solution
 
 |   | Stationary? | Notes |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | \(a\) | No | mean function changes |
 | \(b\) | Yes |  |
 | \(c\) | No | mean |
@@ -147,12 +147,16 @@ acf(ar_1, plot = FALSE) # the .8 for lag 1 is the coef from the AR model
 ## Activity 6 (Problem 2.3) {.smaller}
 
 When smoothing time series data, it is sometimes advantageous to give decreasing amounts of weights to values farther away from the center. Consider the simple two-sided moving average smoother of the form: $$
-v_t = \frac{1}{4}(w_{t-1} + w_t + w_{t+1})
+v_t = \frac{1}{4}(w_{t-1} + 2w_t + w_{t+1})
 $$ Where $w_t$ are white noise. The autocovariance as a function of $h$ is: $$\gamma_v(s, t) = cov(v_s, v_t) =  \begin{cases}\frac{6}{16}\sigma^2_w & \text{ if } h = 0\\ \frac{4}{16}\sigma^2_w & \text{ if } h = \pm 1 \\\frac{1}{16}\sigma^2_w & \text{ if } h = \pm 2 \\0 & \text{ if } h> 2\end{cases}$$ 1. Compare to the [autocovariance equation for the unweighted 3 point moving average from Lecture 2](https://juliaschedler.github.io/Stat416Fall24/LectureNotes/Lecture2.html#example-2.8-autocovariance-of-a-moving-average-1). Comment on the differences.
+
+The coefficients are different, with $w_t$ being weighted more heavily in this function than in the earlier function.
 
 2.  Write down the autocorrelation function.
 
-### Solution
+    divide each term by the variance gamma(0) (corr = cov(x,y)/sd(x)sd(y))
+
+    1, 4/6, 1/6, 0
 
 ## Activity 7
 
@@ -165,11 +169,17 @@ plot(decompose(jj)) ## plot decomposition
 ```
 
 1.  Is the series stationary?
+
+    no, increasing trend
+
 2.  Does the acf of the random component look like white noise?
 
 ```{r}
 #| echo: true
 
 ## extract the random component from the decomposition and plot the acf. Plot an acf for white noise. Do they look similar?
-
+acf(decompose(jj)$random, na.action = na.pass) # acf of rand component
+acf(rnorm(length(jj))) # acf of white noise
 ```
+
+no, there is temporal structure –\> this model is not capturing all the temporal structure of the data (this is like checking the residuals)
