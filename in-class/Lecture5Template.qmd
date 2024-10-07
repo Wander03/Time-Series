@@ -1,0 +1,138 @@
+---
+title: "Lecture 5 - Draft"
+author: Julia Schedler
+format: 
+  html: 
+    code-fold: show
+slide-number: true
+execute: 
+  eval: false
+scrollable: true
+---
+
+## [Activity 1: Detrending a commodity (Example 3.7)]{.r-fit-text} {.smaller}
+
+-   Given the code to generate the plot with the trend line, how would you view the equation of the trend line?
+
+```{r}
+#| eval: true
+
+library(astsa)
+
+fit <- lm(salmon ~ time(salmon), na.action = NULL)
+tsplot(salmon, col=4, ylab='USE per KG', main='Salmon Export Price')
+abline(fit)
+summary(fit)
+```
+-   Visualize the de-trended series. Does it appear stationary?
+
+```{r}
+#| eval: false
+
+residuals <- resid(fit)
+tsplot(residuals)
+```
+-   Compute the acf of the salmon series and the detrended series. What do you notice?
+```{r}
+#| eval: false 
+
+acf(salmon)
+acf(residuals)
+```
+
+
+## [Activity 2: "assuming we are able to estimate it"]{.r-fit-text}
+
+-   Look at pages 37-41 of the textbook
+-   what is "it" in this context? (what are we estimating?)
+-   If this is review, where did you first see these ideas?
+-   Put a dot on the math anxiety rating distribution on the back board
+
+
+## [Activity 3: Simulating a random walk and then differencing it]{.r-fit-text}
+1. Simulate a random walk with no drift and plot it. 
+
+```{r}
+#| eval: false
+
+## Simulate random walk wo/ drift
+w <- rnorm(100)
+x <- cumsum(w)
+
+tsplot(x, main="random walk", ylab="", col=4)
+ clip(0, 200, 0, 80)
+ abline(a=0, b=0, lty=2, col=4) # drift (change b to drift value)
+lines(x, col=6)
+ clip(0, 200, 0, 80)
+ abline(h=0, col=6, lty=2)
+```
+2. Use the `diff` function to difference the simulated series. Plot the result.
+```{r}
+#| eval: false
+
+diff_x <- diff(x)
+
+
+tsplot(diff_x, main="random walk", ylab="", col=4)
+ clip(0, 200, 0, 80)
+ abline(a=0, b=0, lty=2, col=4) # drift
+lines(x, col=6)
+ clip(0, 200, 0, 80)
+ abline(h=0, col=6, lty=2)
+```
+3. Does this series appear stationary? How do you know? 
+
+yes, at least in the mean
+
+4. Visualize the ACF of the differenced series. Does it look like white noise?
+```{r}
+#| eval: false
+
+acf(x)
+acf(diff_x)
+```
+
+
+
+## [Activity 4: Differencing Salmon Prices]{.r-fit-text}
+1. Compute and plot the differenced salmon series. 
+
+```{r}
+#| eval: false
+
+tsplot(diff(salmon))
+```
+
+2. Does the series appear stationary?
+
+No, bit of pseudo-cyclic
+
+3. Visualize the acf of the differenced series. Does it look like white noise?
+```{r}
+#| eval: true
+
+acf(diff(salmon))
+acf1(diff(salmon))
+```
+
+Since the value at 1 is so large, it is hiding the pattern, so try acf1 --> see pattern
+
+## [Activity 5: Comparing Differencing and Detrending]{.r-fit-text}
+Compare the Acfs of the differenced and detrended salmon series. What do you notice?
+```{r}
+#| eval: false
+
+acf(residuals)
+acf(diff(salmon))
+```
+
+The differenced acf looks more like white noise then the detrended
+
+SEE HERS FOR BETTER NOTES
+
+
+detrending: x_t - hat_mu_t
+differencing: x_t - x_t-1
+
+
+

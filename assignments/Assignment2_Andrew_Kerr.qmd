@@ -24,7 +24,7 @@ $$
 1.  \[5 points\] The mean function is derived in Example 2.4. Describe what happens in each step of the computation \[3 points\], and provide a "math stress" rating (1 = effortless, 100 = nightmare) and 3 emojis\[2 points\]. This is personal and there is no right answer.
 
     | Step | Description | Math Stress | Emojis |
-    |:----------------:|:----------------:|:----------------:|:----------------:|
+    |:--:|:--:|:--:|:--:|
     | 1 | We take the expected value of the model ($x_t$) | 1 | 😄🙃😢 |
     | 2 | The expected value of a constant is the constant, so $2\cos(2\pi\frac{t+15}{50})$ is left alone while the random variable $w_t$ for white noise keeps the expected value term | 1 | 😄😊😃 |
     | 3 | The expected value of $w_t$ is 0 since $w_t$ \~ $N(0, \sigma^2_w)$ , so our final value is $2\cos(2\pi\frac{t+15}{50})$ | 1 | 😏😊😄 |
