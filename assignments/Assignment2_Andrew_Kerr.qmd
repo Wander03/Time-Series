@@ -1,7 +1,12 @@
 ---
 title: "Assignment 2 Due 10/7 at Midnight"
 author: "Andrew Kerr"
-format: pdf
+format: 
+  html:
+    code-fold: true
+    code-line-numbers: true
+    code-tools: true
+    self-contained: true
 ---
 
 ::: hidden
@@ -24,7 +29,7 @@ $$
 1.  \[5 points\] The mean function is derived in Example 2.4. Describe what happens in each step of the computation \[3 points\], and provide a "math stress" rating (1 = effortless, 100 = nightmare) and 3 emojis\[2 points\]. This is personal and there is no right answer.
 
     | Step | Description | Math Stress | Emojis |
-    |:--:|:--:|:--:|:--:|
+    |:----------------:|:----------------:|:----------------:|:----------------:|
     | 1 | We take the expected value of the model ($x_t$) | 1 | 😄🙃😢 |
     | 2 | The expected value of a constant is the constant, so $2\cos(2\pi\frac{t+15}{50})$ is left alone while the random variable $w_t$ for white noise keeps the expected value term | 1 | 😄😊😃 |
     | 3 | The expected value of $w_t$ is 0 since $w_t$ \~ $N(0, \sigma^2_w)$ , so our final value is $2\cos(2\pi\frac{t+15}{50})$ | 1 | 😏😊😄 |
@@ -69,7 +74,7 @@ Note: I have set the code chunks here to have `eval: false` in the code chunk. C
 #| echo: true
 library(astsa)
 set.seed(123)
-w <- rnorm(100)
+w <- rnorm(10)
 x_t <- stats::filter(
   w, # values to use
   filter = .7, # value = coef
@@ -83,7 +88,7 @@ x_t <- stats::filter(
 #| label: part2-2
 #| eval: true
 #| echo: true
-x_t_lag1 <- lag(x_t, k = 1)
+x_t_lag1 <- stats::lag(x_t, k = 1)
 ```
 
 The lag function in the stats package creates a lagged version of the inputted data, shifted backwards a given number of observations.
@@ -107,11 +112,10 @@ They are the same values just shifted 1 time place apart!
 #| eval: true
 #| echo: true
 
-tsplot(x_t)
-tsplot(x_t_lag1)
+tsplot(cbind(x_t, x_t_lag1))
 ```
 
-Yes! They are the same plots, just shifted 1 Time apart.
+Yes! They are the same plots, just shifted 1 Time apart, with the lagged version being shifted to the left.
 
 5.  Run the below code. Why are the plots different? Are either particularly useful?
 
@@ -134,20 +138,28 @@ The plots are different because the first plot plots the number for each observa
 #| eval: true
 x_t_lag1 <- dplyr::lag(as.vector(x_t), n = 1)
 cbind(x_t, x_t_lag1)
-tsplot(x_t)
-tsplot(x_t_lag1)
+tsplot(cbind(x_t, x_t_lag1))
 plot(x_t, x_t_lag1)
 plot(as.vector(x_t), as.vector(x_t_lag1))
 ```
 
-This version of lag does not include the last observation in the lagged form of the data (it only has 9 observations now). In the time series plot this removes the last data point, and now both the plots from step 5 look the same, with the first one missing 1.
+This version of lag does not include the last observation in the lagged form of the data (it only has 9 observations now), and is shifted to the right instead of the left. In the time series plot this removes the last data point, and now both the plots from step 5 look the same, with the first one missing 1.
 
-7.  Fit an intercept-free regression model between `x_t` and `x_t_lag`. Provide the value of the slope estimate and interpret the value in the context of this simulation.
+7.  **Re-simulate an AR(1) process as in number 1, but this time with 100 observations. Also recompute x_t_lag1.** Fit an intercept-free regression model between `x_t` and `x_t_lag`. Provide the value of the slope estimate and interpret the value in the context of this simulation.
 
 ```{r}
 #| label: part2-7
 #| echo: true
 #| eval: true
+w <- rnorm(100)
+x_t <- stats::filter(
+  w, # values to use
+  filter = .7, # value = coef
+  sides = 1, # only do past values
+  method = 'recursive') # recursive tells you it is AR()
+
+x_t_lag1 <- stats::lag(x_t, k = 1)
+
 linear_model <- lm(x_t ~ -1 + x_t_lag1)
 linear_model
 ```
@@ -164,6 +176,7 @@ For each increase in 1 observation, on average the value increases by 0.6389 uni
 #| eval: true
 acf(x_t)
 acf(linear_model$residuals)
+acf1(linear_model$residuals)
 ```
 
 The acf plot of the residuals looks more like white noise. This tells me that the linear model captures more of the temporal structure.
@@ -171,3 +184,23 @@ The acf plot of the residuals looks more like white noise. This tells me that th
 ## Part 3: Reading
 
 \[9 points\] Read sections [2.8](https://otexts.com/fpp3/acf.html) and [2.9](https://otexts.com/fpp3/wn.html) from Forecasting Principles and Practice. Make 3 connections \[3 points each\] to content from the course textbook (equations or similar examples.).
+
+1.  Both show the formula for the sample autocorrelation function.
+
+    ![](images/clipboard-2227903262.png)
+
+    ![](images/clipboard-1522736639.png)
+
+<!-- -->
+
+2.  Both tell us how to determine whether a series is white noise
+
+    ![](images/clipboard-3439193185.png)
+
+    ![](images/clipboard-4028771608.png)
+
+<!-- -->
+
+3.  Both show examples of ACF plots and not what the different shapes mean
+
+    i.e. in the main TB they note "Observations separated by six months are negatively correlated, showing that positive excursions tend to be associated with negative excursions six months removed." while the Forecasting TB notes "The slow decrease in the ACF as the lags increase is due to the trend, while the “scalloped” shape is due to the seasonality."
