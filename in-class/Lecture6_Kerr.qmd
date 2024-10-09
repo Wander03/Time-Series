@@ -1,0 +1,150 @@
+---
+title: "Lecture 6"
+author: "Andrew Kerr"
+format: html
+editor: visual
+embed-resources: true
+---
+
+# Activity 1
+
+## White Noise
+
+$$w_t \text{~} N(0, \sigma^2_w)$$
+
+-   mean fucntion: $E(w_t) = 0$
+
+-   autocovariance function: $\gamma_w(s, t) = \sigma^2_w$ if s = t, else 0
+
+-   The values are independent at all time points, have mean 0, and are uncorrelated at all time points except at a given time point, the variance is $\sigma^2_w$.
+
+## Temporal Structure
+
+-   example of temporal structure: $x_t = \beta t + y_t$
+
+-   example of no temporal structure: $w_t$
+
+-   A recognizable pattern within a component of a time series (when the equation has t in it!)
+
+-   Any pattern over time!
+
+-   Temporal structure can be both stationary and non-stationary
+
+    -   stationary: moving average autocovariance
+    -   non-stationary: random walk autocovariance
+
+## Stationarity (for my notes, ignore for the activity)
+
+-   In the mean, the time series is stationary if the average value is constant over time (horizontal with no pattern predictable in time). In the covariance (correlation), depends only on the distance between time points.
+
+## Comparison
+
+As noted above, white noise does not have temporal structure since it does not have any pattern; it is random! When removing a model of all temporal structure, we are left with white noise.
+
+# Activity 2
+
+## Example 3.16
+
+```{r}
+library(astsa)
+
+w = c(.5, rep(1,11), .5)/12
+soif = stats::filter(soi, sides=2, filter=w)
+tsplot(soi, col=rgb(.5, .6, .85, .9), ylim=c(-1, 1.15))
+lines(soif, lwd=2, col=4)
+# insert
+par(fig = c(.65, 1, .75, 1), new = TRUE)
+w1 = c(rep(0,20), w, rep(0,20))
+plot(w1, type="l", ylim = c(-.02,.1), xaxt="n", yaxt="n", ann=FALSE)
+
+# Detrend
+detrend <- soi - soif
+tsplot(detrend)
+
+# ACF
+acf1(soif, na.action = na.pass)
+acf(soi, na.action = na.pass)
+acf(detrend, na.action = na.pass)
+```
+
+0.  The code gives an error. Can you fix it?
+
+The filter function was not using the one from the stats library, so I did stats::filter
+
+1.  Does the moving average smoother appear to be doing a good job of capturing the treed?
+
+No, it does not follow the drastic spikes, it smooths too much
+
+2.  Detrend the soi series with respect to the moving average smoother.
+
+3.  Plot the detrended soi series.
+
+4.  Compute the acf of the soi series and detrended series. What do you notice?
+
+The acf plot of the soi and detrended series shows the yearly cycle, but the y-axis is slightly different (magnitude of the correlations). The moving average smoother shows the longer term oscillation. Each of these series has temporal structure (does not look like white noise).
+
+# Activity 3
+
+## Example 3.17
+```{r}
+tsplot(soi, col=rgb(0.5, 0.6, 0.85, .9), ylim=c(-1, 1.15))
+lines(ksmooth(time(soi), soi, "normal", bandwidth=2), lwd=2, col=4)
+# insert
+par(fig = c(.65, 1, .75, 1), new = TRUE)
+curve(dnorm(x), -3, 3, xaxt="n", yaxt="n", ann=FALSE, col=4)
+par(mfrow = c(1, 1))
+
+par(mfrow = c(2, 1))
+tsplot(soi, col=rgb(0.5, 0.6, 0.85, .9), ylim=c(-1, 1.15))
+lines(ksmooth(time(soi), soi, "normal", bandwidth=1), lwd=2, col=4)
+
+tsplot(soi, col=rgb(0.5, 0.6, 0.85, .9), ylim=c(-1, 1.15))
+lines(ksmooth(time(soi), soi, "normal", bandwidth=0.5), lwd=2, col=4)
+par(mfrow = c(1, 1))
+
+# Detrend
+detrend <- soi - ksmooth(time(soi), soi, "normal", bandwidth=1)$y
+tsplot(detrend)
+
+# ACF
+acf(soi)
+par(mfrow = c(2, 1))
+acf(ksmooth(time(soi), soi, "normal", bandwidth=1)$y)
+acf1(detrend)
+par(mfrow = c(1, 1))
+```
+
+1. Describe the trend captured by the kernel smoother
+
+It captures a cycle every ~2 years.
+
+2. Change the bandwidth to 2 and re-plot the kernel smoother and soi series. Repeat with a bandwidth of 0.5. What do you think the bandwidth parameter does?
+
+It determines how much the function smooths, the smaller the bandwidth, the less it smooths.
+
+(Lower bandwidth means you look at closer obs more, so you will follow the trend closer resulting in less smoothing?)
+
+The bandwidth is how you are interpreting the ____.
+i.e. yearly = 1, monthly = 12
+
+3. Detrend the soi series with respect to the kernel smoother.
+
+4. Plot the detrended soi series.
+
+5. Plot the acf of the soi series, the kernel trend estimate, and detrended series. What do you notice?
+
+see dependence in kernel smoother
+see annual patterns in detrended
+
+Diff between moving avg smoother and kernel smoother?
+The weights are different
+
+# Activity 4
+
+Lowess: does a local regression
+take the data points a little away from time t, and fit a regression
+
+kernel uses kernel function
+moving average uses an average with weights
+
+# Activity 5
