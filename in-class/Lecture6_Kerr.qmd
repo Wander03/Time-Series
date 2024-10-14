@@ -86,6 +86,7 @@ The acf plot of the soi and detrended series shows the yearly cycle, but the y-a
 # Activity 3
 
 ## Example 3.17
+
 ```{r}
 tsplot(soi, col=rgb(0.5, 0.6, 0.85, .9), ylim=c(-1, 1.15))
 lines(ksmooth(time(soi), soi, "normal", bandwidth=2), lwd=2, col=4)
@@ -114,37 +115,32 @@ acf1(detrend)
 par(mfrow = c(1, 1))
 ```
 
-1. Describe the trend captured by the kernel smoother
+1.  Describe the trend captured by the kernel smoother
 
-It captures a cycle every ~2 years.
+It captures a cycle every \~2 years.
 
-2. Change the bandwidth to 2 and re-plot the kernel smoother and soi series. Repeat with a bandwidth of 0.5. What do you think the bandwidth parameter does?
+2.  Change the bandwidth to 2 and re-plot the kernel smoother and soi series. Repeat with a bandwidth of 0.5. What do you think the bandwidth parameter does?
 
 It determines how much the function smooths, the smaller the bandwidth, the less it smooths.
 
 (Lower bandwidth means you look at closer obs more, so you will follow the trend closer resulting in less smoothing?)
 
-The bandwidth is how you are interpreting the ____.
-i.e. yearly = 1, monthly = 12
+The bandwidth is how you are interpreting the \_\_\_\_. i.e. yearly = 1, monthly = 12
 
-3. Detrend the soi series with respect to the kernel smoother.
+3.  Detrend the soi series with respect to the kernel smoother.
 
-4. Plot the detrended soi series.
+4.  Plot the detrended soi series.
 
-5. Plot the acf of the soi series, the kernel trend estimate, and detrended series. What do you notice?
+5.  Plot the acf of the soi series, the kernel trend estimate, and detrended series. What do you notice?
 
-see dependence in kernel smoother
-see annual patterns in detrended
+see dependence in kernel smoother see annual patterns in detrended
 
-Diff between moving avg smoother and kernel smoother?
-The weights are different
+Diff between moving avg smoother and kernel smoother? The weights are different
 
 # Activity 4
 
-Lowess: does a local regression
-take the data points a little away from time t, and fit a regression
+Lowess: does a local regression take the data points a little away from time t, and fit a regression
 
-kernel uses kernel function
-moving average uses an average with weights
+kernel uses kernel function moving average uses an average with weights
 
 # Activity 5
