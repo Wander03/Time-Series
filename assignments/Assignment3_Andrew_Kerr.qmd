@@ -104,6 +104,8 @@ $$
 7.  \[6 points\] Connect part 2 question 9 below to a sentence in the
     above excerpt.
 
+    "...the first difference eliminates a linear trend."
+
 8.  \[10 points\] What kind of plot might you make to check if the data
     has been "coerced to stationarity"?
 
@@ -127,7 +129,7 @@ $$
 
 ```{r}
 #| label: part 1
-#| message: true
+#| message: false
 
 library(astsa)
 
@@ -145,7 +147,7 @@ seasonal pattern present.
 
 ```{r}
 #| label: part 2
-#| message: true
+#| message: false
 
 unique(diff(time(gtemp_land)))
 ```
@@ -157,7 +159,7 @@ The observations were collected yearly.
 
 ```{r}
 #| label: part 3
-#| message: true
+#| message: false
 
 acf(gtemp_land)
 ```
@@ -176,7 +178,7 @@ suggests a possible seasonal pattern.
 
 ```{r}
 #| label: part 4
-#| message: true
+#| message: false
 
 w = c(.5, rep(1,3), .5)/5
 land_ma = stats::filter(gtemp_land, sides=2, filter=w)
@@ -198,7 +200,7 @@ more recent years.
 
 ```{r}
 #| label: part 5
-#| message: true
+#| message: false
 
 land_lm <- lm(gtemp_land ~ time(gtemp_land))
 tsplot(gtemp_land, type = 'p', main = paste("Global Land Temperature with Linear Model"), xlab = "Year", ylab = "Temperature Deviations")
@@ -219,7 +221,7 @@ trend in more recent years since it is a straight line.
 
 ```{r}
 #| label: part 6
-#| message: true
+#| message: false
 
 par(mfrow = c(2,2))
 
@@ -238,6 +240,15 @@ invisible(acf1(land_detrend_lm))
 par(mfrow = c(1,1))
 ```
 
+The detrended moving average plot shows a slight increasing trend, while
+the detrended linear model plot decreases then increases. The ACF1 plot
+for the detrended moving average shows most values are near zero, with
+increases at lag 3, 6, 8, and 12 suggesting potential seasonal or
+cyclical patterns, but overall removing most of the correlation. On the
+other hand, the ACF1 plot of the detrended linear model shows decreasing
+correlation as time points move further apart (higher lags), which means
+that this model may not have captured all of the patterns in the data.
+
 7.  \[20 points\] Difference the time series and plot the result\[5
     points\]. Also compute the acf and plot it\[5 points\]. Comment on
     whether the differencing has "coerced the data to stationarity"\[10
@@ -245,9 +256,24 @@ par(mfrow = c(1,1))
 
 ```{r}
 #| label: part 7
-#| message: true
-# your code here
+#| message: false
+
+par(mfrow = c(2,1))
+
+land_diff <- diff(gtemp_land)
+tsplot(land_diff, type = 'p', main = paste("Differenced Global Land Temperature"), xlab = "Year", ylab = "Differenced Temperature Deviations")
+lines(land_diff)
+
+invisible(acf(land_diff))
+
+par(mfrow = c(1,1))
 ```
+
+Differencing the data has not coerced it to stationary. Although the
+mean appears stationary since it is centered around zero and does not
+fluctuate much, the correlation has a large negative spike at lag 2 and
+a slight positive spike at lag 12. Therefore, differencing the data has
+helped move the time series toward stationarity.
 
 8.  \[11 points\] Estimate the sum of squared error for both the linear
     regression and the moving average \[3 points each\]. What do they
@@ -256,16 +282,29 @@ par(mfrow = c(1,1))
 
 ```{r}
 #| label: part 8
-#| message: true
-# your code here
+#| message: false
+
+sum(as.vector(land_detrend_ma)^2, na.rm = T)
+sum(land_detrend_lm^2)
 ```
 
+Since the SSE for the moving average model is smaller, this is the
+better model. This agrees with what I concluded from my visual
+assessments.
+
 9.  \[10 points\] Why can't you do part 6 for the differenced series?
+
+    We cannot detrend a differenced series because the first
+    differencing removes linear trend, so it has already removed the
+    trend that detrending is trying to extract (differencing is a method
+    of detredning).
 
 10. \[3 points\] Ensure that when you render the document to .html to
     turn in that you have `embed-resources: true` in the options at the
     top of the document (you may also turn in a pdf). Also, set message
     to false for all the code chunks.
+
+    Okay!
 
 ## 3. The literature
 
@@ -276,25 +315,57 @@ here](https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1029/JD092iD11p13345).
     you understand, and one you do not understand but would like to
     understand better.
 
+    I understand: "We calculate the mean of both records for the period
+    in common, and adjust the entire second record ($T_2$) by the
+    difference (bias) $\delta T$."
+
+    I want to understand: "An alternative method commonly used to
+    combine station records is to define $\delta T$ by specifying the
+    mean temperature of each station as zero for a specific period which
+    had a large number of stations, for example 1950-1980; this
+    alternative method compares unfavorably to ours with regard to both
+    making use of the maximum number of stations and defining the bias
+    $\delta T$ between stations as accurately as possible."
+
 2.  \[4 points\] Take a look at Figure 6. There are six time series
     plotted. One is the data plotted in number 1 of the coding portion,
     the other is the moving average estimate estimated in number 3.
     Which of the six series are they?
+
+    They are the two time series overlayed on-top of each other on the
+    top of Figure 6 labeled Global. The data is the dotted line while
+    the moving average is the solid line.
 
 3.  \[4 points\] The textbook for our class states on page 3 that "the
     data are annual temperature anomalies averaged over the Earth's land
     area.". Does the book state what is specifically meant by "anomaly"
     here?
 
+    The textbook states that the anomalies (values) are "deviations
+    (degrees C) from the 1951–1980 average."
+
 4.  \[2 points\] Consider the concept of averaging over the Earth's land
-    area, then take a look at Figure 1. Describe in therms of the
+    area, then take a look at Figure 1. Describe in terms of the
     "circles" how you might calculate that global average.
+
+    I might calculate the global average by taking the average
+    temperature of each circle, then taking a weighted average of all of
+    these values. I would weight them by what percentage of the circle
+    is on land vs. over the water. Circles with higher land coverage
+    would be weighted more heavily than those with higher water
+    coverage. These weights would also have to account for the overlap
+    of the circles so one area of the globe does not get too much
+    influence (although I am not sure how to do this part exactly, maybe
+    penalize the weight by percentage overlap).
 
 5.  \[15 points\] Figure 3 plots correlation coefficients between annual
     mean temperature changes for pairs of randomly selected stations
     having at least 50 common years in their records. How can you
-    rephrase "annual mean tempearture changes" in terms of detrending or
+    rephrase "annual mean temperature changes" in terms of detrending or
     differencing?
+
+    We can rephrase this as taking the first differences between the
+    annual mean temperature time series at each station.
 
 ## 4. Weights
 
@@ -302,3 +373,8 @@ here](https://agupubs.onlinelibrary.wiley.com/doi/epdf/10.1029/JD092iD11p13345).
     numbered problem as "weights". Based on the weights, which content
     is the most important? Answer on both the individual problem level
     and the section level (i.e. math, code, etc).
+
+    The most important question is question 7 from the coding section on
+    differencing (20 points), while the most important section is the
+    coding section with 103 total points (59% of the points for this
+    assignment).
