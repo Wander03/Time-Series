@@ -259,6 +259,10 @@ Lots of ways to report results...
 
         -   trend + white noise
 
--   Assignment 2
+-   White noise v. stationarity
 
-    -   
+    -   white noise autocorrelation function: sigma\^2 for s = t, else 0
+
+    -   MA: a for s = t, b for \|s - t\| = 1, ....0 \|s - t\| \> \#
+
+        -   ACF plot show some correlation at lags, up to its \# (eg 3 point MA)
