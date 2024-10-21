@@ -234,3 +234,31 @@ acf(AirPassengers - fitted(AP.hw)[,1])
 Lots of ways to report results...
 
 ## Questions on anything!
+
+-   Why coerce data to stationary?
+
+    -   stationary: dont depend on time except how far apart the time points are (lag)
+
+    -   \^ models temporal structure in a predictable, estimable, structure
+
+-   code
+
+    -   acf()
+
+    -   ts()
+
+    -   stats::filter() for MA and Autoregressions
+
+    -   random walk
+
+        -   white noise –\> cusum()
+
+        -   white noise + drift –\> cusum()
+
+    -   signal plus noise
+
+        -   trend + white noise
+
+-   Assignment 2
+
+    -   
