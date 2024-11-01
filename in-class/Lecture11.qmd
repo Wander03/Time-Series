@@ -51,7 +51,7 @@ tsplot(diff(log_gnp))
 
 ## Unit root tests
 
-::: columns
+::::: columns
 ::: column
 **Augmented Dickey-Fuller (ADF)**
 
@@ -67,7 +67,7 @@ tsplot(diff(log_gnp))
 
 -   Alternative hypothesis: nonstationary data
 :::
-:::
+:::::
 
 ## What's a unit?
 

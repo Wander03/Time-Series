@@ -1,0 +1,432 @@
+---
+title: "Assignment 4"
+author: "Andrew Kerr"
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-title: "Outline"
+    toc-depth: 3
+    code-line-numbers: true
+    code-tools: true
+    self-contained: true
+    embed-resources: true
+    theme:
+      light: flatly
+      dark: darkly
+    default: dark
+---
+
+```{r}
+#| label: libraries
+#| message: false
+
+library(tidyverse)
+library(astsa)
+library(fpp3)
+```
+
+# Snowshoe hare furs
+
+## 1. Produce a well-labeled time series plot of the Snowshoe Hare furs.
+
+```{r}
+#| label: Q1
+
+data(pelt)
+
+pelt %>%
+  ggplot(aes(x = Year, y = Hare)) +
+  geom_line() +
+  geom_point() +
+  scale_y_continuous(labels = scales::label_comma()) +
+  theme_bw() +
+  labs(title = 'Snowshoe Hare Fur Sales by Year',
+       subtitle = '1845 - 1935',
+       y = 'Hare Pelts Sold')
+```
+
+## 2. Describe the plot produced in number 1.
+
+The time series plot above appears to have a seasonal/cyclic pattern, with peaks/lows appearing roughly every 10 years.
+
+## 3. Make an acf and pacf of the data. Suggest a model for the snowshoe hare fur based on
+the acf/pacf.
+
+```{r}
+#| label: Q3
+
+par(mfrow = c(1,2))
+acf(pelt$Hare)
+pacf(pelt$Hare)
+```
+
+
+The above ACF and plot appears to tail off, while the PACF plot appears to cut off after lag 1. I will try a differencing value of 1 since the above plots do not indicate the data is stationary (I am not sure if I am supposed to check for more since the question asks to only go off of these two plots). With all this in mind, I suggest an ARIMA(1,1,0) model.
+
+## 4. Fit the model you suggested in number 3.
+
+```{r}
+#| label: Q4
+
+fit_pelt <- pelt %>%
+  as_tsibble() %>%
+  model(ARIMA(Hare ~ pdq(1, 1, 0) + PDQ(0, 0, 0)))
+```
+
+## 5. Write the equation of the model you fit in number 4.
+
+$$
+x_t - x_{t-1} = \alpha + \phi_1(x_{t-1} - x_{t-2}) + w_t\text{; } w_t \text{~} N(0, \theta^2_w)
+$$
+
+## 6. Provide and interpret 3-5 diagnostic plots or tests and comment on whether the model
+fits well.
+
+```{r}
+#| label: Q6
+
+residuals(fit_pelt) %>%
+  gg_tsdisplay(.resid, plot_type = "partial")
+```
+
+Neither the ACF nor PACF plots look like white noise. The ACF plot still shows
+an increasing and decreasing pattern, indicative of seasonality. Meanwhile, the 
+PACF plot has large spikes at lag 5, 6, and 7. The residual plot has a large 
+spike just after 1860, but other wise looks more stationary than the original
+plot. Therefore, I would say that this model fit the data well, but could be 
+improved.
+
+## 7. By hand, calculate forcasts for the years 1936-1939.
+
+```{r}
+#| label: Q7
+
+fit_pelt %>%
+  report()
+```
+
+## 8. Using R, calculate forecasts for the years 1936-1939.
+
+```{r}
+#| label: Q8
+
+R_forecast <- fit_pelt %>%
+  forecast(h = 4)
+```
+
+## 9. Plot the forecasts on the same plot as the data, and interpret the forecast.
+
+```{r}
+#| label: Q9
+
+R_forecast %>%
+  autoplot(pelt)
+```
+
+## 10. Use the automatic algorithm in the ARIMA() function to fit a model to the snowshoe
+hare time series.
+
+```{r}
+#| label: Q10
+
+auto_fit_pelt <- pelt %>%
+  as_tsibble() %>%
+  model(ARIMA(Hare ~ PDQ(0,0,0)))
+```
+
+## 11. Compare the models and provide a recommendation on choice of model 
+**(use a 2 pieces of “evidence” for your recommendation). Make sure to mention differences in forecasts, if any.**
+
+```{r}
+#| label: Q11
+
+auto_fit_pelt %>%
+  report()
+
+residuals(auto_fit_pelt) %>%
+  gg_tsdisplay(.resid, plot_type = "partial")
+
+auto_forecast <- auto_fit_pelt %>%
+  forecast(h = 4)
+
+tsplot(pelt$Year, pelt$Hare, ylab = "Hare Pelts Sold",
+       xlab = "Year", main = "Snowshoe Hare Fur Sales by Year (1845 - 1935)", type = "b", lty = 2, 
+       xlim = c(1845, 1940), lwd = 2)
+lines(auto_forecast$Year, auto_forecast$.mean, col = "firebrick", lwd = 2)
+lines(R_forecast$Year, R_forecast$.mean, col = "cornflowerblue", lwd = 2)
+legend("topright", legend = c("Auto ARIMA Forecast", "My Model Forecast", "Original Data"), col = c("firebrick", "cornflowerblue", "black"), 
+       lty = c(1,1,2), lwd = c(2,2,2))
+```
+
+Compared to my model, the automatically chosen model is a better fit. The 
+automatic model has a slightly lower AICc value (2102.85 v. 2110.88) and its
+ACF and PACF plots look more like white noise, both showing that the automatic
+model is a better fit. The forecast for the automatic model also aligns with 
+what I might expect the next few years to look like, showing an increase in hare 
+pelts sold unlike the continued decrease my model predicts. 
+
+# Transforming
+
+## 1. For the following series, find an appropriate transformation and order of differencing to
+obtain stationary data.
+
+### Turkish GDP data from global_economy
+
+```{r}
+#| label: Q1-2-1
+
+data("global_economy")
+
+turk_econ <- global_economy %>%
+  filter(Country == "Turkey") %>%
+  select(Year, GDP) %>%
+  as.ts()
+
+par(mfrow = c(3,1))
+tsplot(turk_econ)
+tsplot(log(turk_econ))
+tsplot(diff(log(turk_econ)))
+
+par(mfrow = c(1,2))
+invisible(acf1(diff(log(turk_econ))))
+pacf(diff(log(turk_econ)))
+```
+
+Log transformation with 1 difference.
+
+### Accommodation takings in the state of Tasmania from aus_accommodation
+
+```{r}
+#| label: Q1-2-2
+
+data("aus_accommodation")
+
+tas_taking <- aus_accommodation %>%
+  filter(State == "Tasmania") %>%
+  select(Date, Takings) %>%
+  as.ts()
+
+par(mfrow = c(3,1))
+tsplot(tas_taking)
+tsplot(diff(tas_taking, 4))
+tsplot(diff(diff(tas_taking, 4)))
+
+par(mfrow = c(1,2))
+invisible(acf1(diff(diff(tas_taking, 4))))
+pacf(diff(diff(tas_taking, 4)))
+```
+
+Seasonal difference and difference.
+
+### Monthly sales from souvenirs
+
+```{r}
+#| label: Q1-2-3
+
+data("souvenirs")
+
+souv <- souvenirs %>%
+  as.ts()
+
+log_souv <- log(souv)
+
+par(mfrow = c(3,1))
+tsplot(souv)
+tsplot(diff(souv, 12))
+tsplot(diff(diff(souv, 12)))
+
+par(mfrow = c(1,2))
+invisible(acf1(diff(diff(souv, 12))))
+pacf(diff(diff(souv, 12)))
+
+par(mfrow = c(3,1))
+tsplot(log_souv)
+tsplot(diff(log_souv, 12))
+tsplot(diff(diff(log_souv, 12)))
+
+par(mfrow = c(1,2))
+invisible(acf1(diff(diff(log_souv, 12))))
+pacf(diff(diff(log_souv, 12)))
+```
+
+Seasonal difference and difference.
+
+## 2. For the transformed Turkish GDP series, perform a KPSS unit root test.
+
+### Write the null and alternative hypotheses
+
+$$
+H_o\text{: The transformed Turkish GDP series is stationary}
+$$
+
+$$
+H_a\text{: The transformed Turkish GDP series is not stationary}
+$$
+
+### Include the code and output
+
+```{r}
+#| label: Q2-2-2
+
+trans_turk <- diff(log(turk_econ))
+
+trans_turk %>%
+  as_tsibble() %>%
+  features(value, unitroot_kpss)
+```
+
+### Interpret the results
+
+With a large p-value of 0.1, we fail to reject the null hypothesis that the 
+transformed Turkish GDP series is stationary.
+
+# Australian Arrivals
+
+## 1. Use the information from the data documentation to create a nice plot of the arrivals from just Japan.
+
+```{r}
+#| label: Q1-3
+
+data("aus_arrivals")
+
+jap_aus <- aus_arrivals %>%
+  filter(Origin == "Japan") %>%
+  select(-Origin)
+
+jap_aus %>%
+  ggplot(aes(x = Quarter, y = Arrivals)) +
+  geom_line() +
+  geom_point() +
+  scale_y_continuous(labels = scales::label_comma()) +
+  theme_bw() +
+  labs(title = 'International Arrivals to Australia from Japan',
+       subtitle = '1981Q1 - 2012Q3')
+```
+
+## 2. Describe the trend and seasonal components (including the period) in the data, if any.
+
+The above series has an increasing trend from 1980Q1 to around 1998Q1, where it 
+switches to a decreasing trend. There is a seasonal pattern with a period of 4.
+
+## 3. Use differencing to obtain stationary data.
+
+```{r}
+#| label: Q3-3
+
+jap_aus_ts <- as.ts(jap_aus) 
+
+par(mfrow = c(3,1))
+tsplot(diff(jap_aus_ts, 4))
+tsplot(diff(diff(jap_aus_ts, 4)))
+tsplot(diff(diff(diff(jap_aus_ts, 4))))
+
+jap_aus_stationary <- diff(diff(jap_aus_ts, 4))
+```
+
+## 4. Plot the acf and pacf of the data.
+
+```{r}
+#| label: Q4-3
+
+par(mfrow = c(1,2))
+acf(jap_aus_stationary)
+pacf(jap_aus_stationary)
+```
+
+## 5. Identify and fully specify the order of a potential SARIMA model based on the ACF and PACF of the data.
+
+Seasonal: ACF appears to cut off after lag 1 (4 Quarters) and PACF cuts off after lag 1 (1 Quarters) --> Q = 1, P = 1.
+
+Non-seasonal: ACF appears to cut off after lag 1 (1/4) and PACF appears to tail off --> q = 1, p = 0.
+
+SARIMA(p = 0,
+       d = 1,
+       q = 1,
+       P = 1,
+       D = 1,
+       Q = 1)
+
+## 6. Use the automatic model selection process in ARIMA() to select a model.
+
+```{r}
+#| label: Q5-3
+
+auto_fit_aus <- jap_aus %>%
+  as_tsibble() %>%
+  model(ARIMA(Arrivals))
+
+auto_fit_aus %>% report()
+```
+
+## 7. Plot the fitted values from the automatically fitted model over the series and comment on the quality of the fit.
+
+```{r}
+#| label: Q6-3
+
+fitted_values <- auto_fit_aus %>%
+  augment()
+
+fitted_values %>%
+  ggplot() +
+  geom_line(aes(x = Quarter, y = Arrivals, color = 'Actual Arrivals')) +
+  # geom_point(aes(x = Quarter, y = Arrivals), shape = 21) +
+  geom_line(aes(x = Quarter, y = .fitted, color = 'Fitted Values')) +
+  # geom_point(aes(x = Quarter, y = .fitted), color = 'firebrick', shape = 21) +
+  scale_color_manual(values = c("Actual Arrivals" = "black", "Fitted Values" = "firebrick")) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  theme_bw() +
+  labs(title = 'International Arrivals to Australia from Japan',
+       subtitle = '1981Q1 - 2012Q3',
+       color = 'Data')
+  
+```
+
+The fit appears to underestimate the peaks at the start, then over exaggerate the dips and the peaks.
+
+## 8. Explain what the following code does and interpret the results (look a the documentation!!!).
+
+```{r}
+# install.packages("microbenchmark") # run in console just once to install
+library(microbenchmark)
+library(fpp3)
+start <- microbenchmark::get_nanotime()
+
+aus_arrivals |>
+  filter(Origin == "Japan") |>
+  model(ARIMA(Arrivals, approximation = TRUE))
+  time_approx <- microbenchmark::get_nanotime() - start
+  start <- microbenchmark::get_nanotime()
+  aus_arrivals |>
+  filter(Origin == "Japan") |>
+  model(ARIMA(Arrivals, approximation = FALSE))
+  time_noapprox <- microbenchmark::get_nanotime() - start
+  (time_noapprox - time_approx)/1e9
+```
+
+The above code times the difference in seconds it takes to automatically choose 
+two models from the Japan to Australia arrival data. The first model has 
+approximation = FALSE, which means that conditional sum of squares is NOT used 
+during model selection. The other model has this value set to TRUE, meaning that 
+CSS IS USED during model selection.
+
+The first model selected an ARIMA(0,1,1)(0,1,2) model, while the second an
+ARIMA(0,1,1)(1,1,1) model. The approximation model (first model) ran 
+0.3037941 seconds quicker than the no approximation model (second model). 
+Therefore, the approximation method does speed up model fitting (although not by
+much here).
+
+## 9. Can you use AICc to compare your manually chosen model to the automatically chosen model?
+
+```{r}
+#| label: Q9-3
+
+auto_fit_aus %>%
+  report()
+```
+
+Since my manually chosen model is the same as the automatically chosen model, 
+there is no need to compare them (but if it was not then yes, I could).
+
+
+
