@@ -50,8 +50,7 @@ pelt %>%
 
 The time series plot above appears to have a seasonal/cyclic pattern, with peaks/lows appearing roughly every 10 years.
 
-## 3. Make an acf and pacf of the data. Suggest a model for the snowshoe hare fur based on
-the acf/pacf.
+## 3. Make an acf and pacf of the data. Suggest a model for the snowshoe hare fur based on the acf/pacf.
 
 ```{r}
 #| label: Q3
@@ -62,7 +61,7 @@ pacf(pelt$Hare)
 ```
 
 
-The above ACF and plot appears to tail off, while the PACF plot appears to cut off after lag 1. I will try a differencing value of 1 since the above plots do not indicate the data is stationary (I am not sure if I am supposed to check for more since the question asks to only go off of these two plots). With all this in mind, I suggest an ARIMA(1,1,0) model.
+The above ACF and plot appears to tail off, while the PACF plot appears to cut off after lag 1. With all this in mind, I suggest an ARIMA(1,0,0) model.
 
 ## 4. Fit the model you suggested in number 3.
 
@@ -71,17 +70,16 @@ The above ACF and plot appears to tail off, while the PACF plot appears to cut o
 
 fit_pelt <- pelt %>%
   as_tsibble() %>%
-  model(ARIMA(Hare ~ pdq(1, 1, 0) + PDQ(0, 0, 0)))
+  model(ARIMA(Hare ~ pdq(1, 0, 0) + PDQ(0, 0, 0)))
 ```
 
 ## 5. Write the equation of the model you fit in number 4.
 
 $$
-x_t - x_{t-1} = \alpha + \phi_1(x_{t-1} - x_{t-2}) + w_t\text{; } w_t \text{~} N(0, \theta^2_w)
+x_t = x_{t-1} + \phi_1(x_{t-1} - x_{t-2}) + c
 $$
 
-## 6. Provide and interpret 3-5 diagnostic plots or tests and comment on whether the model
-fits well.
+## 6. Provide and interpret 3-5 diagnostic plots or tests and comment on whether the model fits well.
 
 ```{r}
 #| label: Q6
@@ -104,6 +102,31 @@ improved.
 
 fit_pelt %>%
   report()
+
+phi <- 0.6597
+c <- 15066.957
+
+get_hand_forecast <- function(df, theta, constant, h) {
+  
+  pred <- pelt %>%
+    tail(n = 1) %>%
+    select(-Lynx)
+    
+  for(i in 1:h) {
+    
+    last <- pred %>%
+      tail(1)
+    
+    pred <- pred %>%
+      add_row(Year = last$Year + 1, Hare = theta * last$Hare + constant)
+  }
+  
+  return(pred[-1,])
+  
+}
+
+hand_forecast <- get_hand_forecast(pelt, phi, c, 4)
+hand_forecast
 ```
 
 ## 8. Using R, calculate forecasts for the years 1936-1939.
@@ -113,6 +136,8 @@ fit_pelt %>%
 
 R_forecast <- fit_pelt %>%
   forecast(h = 4)
+
+R_forecast$.mean
 ```
 
 ## 9. Plot the forecasts on the same plot as the data, and interpret the forecast.
@@ -120,19 +145,25 @@ R_forecast <- fit_pelt %>%
 ```{r}
 #| label: Q9
 
-R_forecast %>%
-  autoplot(pelt)
+tsplot(pelt$Year, pelt$Hare, ylab = "Hare Pelts Sold",
+       xlab = "Year", main = "Snowshoe Hare Fur Sales by Year (1900 - 1935)", type = "b", lty = 2, 
+       xlim = c(1900, 1940), lwd = 2)
+lines(hand_forecast$Year, hand_forecast$Hare, col = "firebrick", lwd = 2)
+lines(R_forecast$Year, R_forecast$.mean, col = "cornflowerblue", lwd = 2)
+legend("topright", legend = c("By Hand Forecast", "R Forecast", "Original Data"), col = c("firebrick", "cornflowerblue", "black"), 
+       lty = c(1,1,2), lwd = c(2,2,2))
 ```
 
-## 10. Use the automatic algorithm in the ARIMA() function to fit a model to the snowshoe
-hare time series.
+My model forecasts that the amount of hare pelts sold will increase. The rate of the increase will decrease over time. 
+
+## 10. Use the automatic algorithm in the ARIMA() function to fit a model to the snowshoe hare time series.
 
 ```{r}
 #| label: Q10
 
 auto_fit_pelt <- pelt %>%
   as_tsibble() %>%
-  model(ARIMA(Hare ~ PDQ(0,0,0)))
+  model(ARIMA(Hare))
 ```
 
 ## 11. Compare the models and provide a recommendation on choice of model 
@@ -160,16 +191,15 @@ legend("topright", legend = c("Auto ARIMA Forecast", "My Model Forecast", "Origi
 ```
 
 Compared to my model, the automatically chosen model is a better fit. The 
-automatic model has a slightly lower AICc value (2102.85 v. 2110.88) and its
+automatic model has a slightly lower AICc value (2102.85 v. 2122.8) and its
 ACF and PACF plots look more like white noise, both showing that the automatic
 model is a better fit. The forecast for the automatic model also aligns with 
-what I might expect the next few years to look like, showing an increase in hare 
-pelts sold unlike the continued decrease my model predicts. 
+what I might expect the next few years to look like, showing a decrease into an increase in hare 
+pelts sold unlike the immediate increase my model predicts. 
 
 # Transforming
 
-## 1. For the following series, find an appropriate transformation and order of differencing to
-obtain stationary data.
+## 1. For the following series, find an appropriate transformation and order of differencing to obtain stationary data.
 
 ### Turkish GDP data from global_economy
 
@@ -182,6 +212,10 @@ turk_econ <- global_economy %>%
   filter(Country == "Turkey") %>%
   select(Year, GDP) %>%
   as.ts()
+
+log(turk_econ) %>% 
+  as_tsibble() %>% 
+  features(value, unitroot_ndiffs)
 
 par(mfrow = c(3,1))
 tsplot(turk_econ)
@@ -207,14 +241,24 @@ tas_taking <- aus_accommodation %>%
   select(Date, Takings) %>%
   as.ts()
 
+box_cox(tas_taking, .5) %>% 
+  as_tsibble() %>% 
+  features(value, unitroot_ndiffs)
+
 par(mfrow = c(3,1))
 tsplot(tas_taking)
+tsplot(box_cox(tas_taking, .5))
 tsplot(diff(tas_taking, 4))
-tsplot(diff(diff(tas_taking, 4)))
 
-par(mfrow = c(1,2))
+par(mfrow = c(2,1))
+tsplot(diff(diff(tas_taking, 4)))
+tsplot(diff(diff(box_cox(tas_taking, .5), 4)))
+
+par(mfrow = c(2,2))
 invisible(acf1(diff(diff(tas_taking, 4))))
 pacf(diff(diff(tas_taking, 4)))
+invisible(acf1(diff(diff(box_cox(tas_taking, .5), 4))))
+pacf(diff(diff(box_cox(tas_taking, .5), 4)))
 ```
 
 Seasonal difference and difference.
@@ -231,8 +275,17 @@ souv <- souvenirs %>%
 
 log_souv <- log(souv)
 
-par(mfrow = c(3,1))
+souv %>% 
+  as_tsibble() %>% 
+  features(value, unitroot_ndiffs)
+
+log_souv %>% 
+  as_tsibble() %>% 
+  features(value, unitroot_ndiffs)
+
+par(mfrow = c(4,1))
 tsplot(souv)
+tsplot(log_souv)
 tsplot(diff(souv, 12))
 tsplot(diff(diff(souv, 12)))
 
@@ -250,7 +303,7 @@ invisible(acf1(diff(diff(log_souv, 12))))
 pacf(diff(diff(log_souv, 12)))
 ```
 
-Seasonal difference and difference.
+Log transformation with seasonal difference and difference.
 
 ## 2. For the transformed Turkish GDP series, perform a KPSS unit root test.
 
