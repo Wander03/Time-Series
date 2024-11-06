@@ -71,12 +71,15 @@ The above ACF and plot appears to tail off, while the PACF plot appears to cut o
 fit_pelt <- pelt %>%
   as_tsibble() %>%
   model(ARIMA(Hare ~ pdq(1, 0, 0) + PDQ(0, 0, 0)))
+
+fit_pelt %>%
+  report()
 ```
 
 ## 5. Write the equation of the model you fit in number 4.
 
 $$
-x_t = x_{t-1} + \phi_1(x_{t-1} - x_{t-2}) + c
+x_t = 15066.957 + 0.6597x_{t-1}
 $$
 
 ## 6. Provide and interpret 3-5 diagnostic plots or tests and comment on whether the model fits well.
