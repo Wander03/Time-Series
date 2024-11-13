@@ -1,0 +1,289 @@
+---
+title: "Assignment 5"
+author: "Andrew Kerr"
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-title: "Outline"
+    toc-depth: 3
+    code-line-numbers: true
+    code-tools: true
+    self-contained: true
+    embed-resources: true
+    theme:
+      light: flatly
+      dark: darkly
+    default: dark
+---
+
+```{r}
+#| label: lib
+#| message: false
+#| include: false
+
+library(astsa)
+library(fpp3)
+```
+
+## Simulating Seasonal Arima models
+
+### Part 1
+Simulate 10 observations from an ARIMA model that has a seasonal component.
+
+```{r}
+#| label: 1-1
+
+set.seed(123)
+
+sim_sarima_10 <- sarima.sim(
+  ar = 0.6,
+  d = 0,
+  ma = 0,
+  sar = 0,
+  D = 0,
+  sma = 0.9,
+  S = 4,
+  n = 10
+)
+
+sim_sarima_10 %>%
+  tsplot(main = "SARIMA(1,0,0)(0,0,1)4, n = 10")
+```
+
+### Part 2
+Plot the ACF and PACF of your simulated series (applying differences if necessary), and
+comment on whether the ACF and PACF suggest the model you simulated from.
+
+```{r}
+#| label: 1-2
+
+par(mfrow = c(1,2))
+acf(sim_sarima_10)
+pacf(sim_sarima_10)
+```
+
+### Part 3
+Repeat parts 1 and 2, but increasing the number of data points to 100 and 1000. Are the
+patterns in the ACF and PACF easier to identify using more data?
+
+```{r}
+#| label: 1-3
+
+set.seed(123)
+
+sim_sarima_100 <- sarima.sim(
+  ar = 0.6,
+  d = 0,
+  ma = 0,
+  sar = 0,
+  D = 0,
+  sma = 0.9,
+  S = 4,
+  n = 100
+)
+
+sim_sarima_1000 <- sarima.sim(
+  ar = 0.6,
+  d = 0,
+  ma = 0,
+  sar = 0,
+  D = 0,
+  sma = 0.9,
+  S = 4,
+  n = 1000
+)
+
+par(mfrow = c(2,1))
+
+sim_sarima_100 %>%
+  tsplot(main = "SARIMA(1,0,0)(0,0,1)4, n = 100")
+
+sim_sarima_1000 %>%
+  tsplot(main = "SARIMA(1,0,0)(0,0,1)4, n = 1000")
+
+par(mfrow = c(2,2))
+acf(sim_sarima_100)
+pacf(sim_sarima_100)
+
+acf(sim_sarima_1000)
+pacf(sim_sarima_1000)
+```
+
+## Exports
+Data set global_economy contains the annual Exports from many countries. Work with data
+just from Argentina.
+
+```{r}
+#| label: 2-data
+
+arg_exports <- global_economy %>%
+  filter(Country == "Argentina") %>%
+  select(Year, Exports)
+```
+
+### Part 1
+Plot the Exports series and discuss the main features of the data
+
+```{r}
+tsplot(as.ts(arg_exports), main = "Argentina Exports")
+```
+
+There is a very slight increasing trend till 2000, where we see a large positive 
+spike and a subsequent deceasing trend for the rest of the data. 
+
+### Part 2
+Use an ETS(A,N,N) model to forecast the series, and plot the forecasts.
+
+```{r}
+#| label: 2-2
+
+arg_fit <- arg_exports %>%
+  model(ann = ETS(Exports ~ error("A") + trend("N") + season("N")))
+
+arg_fc <- arg_fit %>%
+  forecast(h = 10)
+
+arg_fc %>%
+  autoplot(arg_exports) +
+  theme_bw() +
+  labs(title = "ETS(A,N,N) Model Forecasts")
+```
+
+### Part 3
+Compute the RMSE values for the training data.
+
+```{r}
+#| label: 2-3
+
+accuracy(arg_fit) %>% pull(RMSE)
+```
+
+### Part 4
+Compare the results to those from an ETS(A,A,N) model. (Remember that the trended model
+is using one more parameter than the simpler model.) Discuss the merits of the two forecasting
+methods for this data set.
+
+```{r}
+#| label: 2-4
+
+arg_fits <- arg_exports %>%
+  model(ann = ETS(Exports ~ error("A") + trend("N") + season("N")),
+        aan = ETS(Exports ~ error("A") + trend("A") + season("N")))
+
+tidy(arg_fits)
+
+accuracy(arg_fits)
+```
+
+The AAN model needs to estimate two additional terms, beta ad b[0], making it a 
+more complex model. Although the alpha values of the two models are very similar, 
+the l[0] value for the ANN model is greater than that for the AAN model. 
+The beta value for the AAN model is approximately 0, meaning that 
+there is not much of a trend effected required to be modeled, which is 
+reflected in the very similar RMSE values obtained from the two models. 
+
+### Part 5
+Compare the forecasts from both methods. Which do you think is best?
+
+```{r}
+#| label: 2-5
+
+arg_fits %>%
+  forecast(h = 10) %>%
+  autoplot(arg_exports) +
+  theme_bw() +
+  labs(title = "ETS(A,N,N) v. ETS(A,A,N) Model Forecasts")
+```
+
+I think that the forecasts from the AAN model is best because I do not believe
+that the future exports will be a horizontal line. However, since the RMSE 
+values for the two models are approximently the same, I would be happy using 
+either model.
+
+### Part 6
+Calculate a 95% prediction interval for the first forecast for each model, using the RMSE
+values and assuming normal errors. Compare your intervals with those produced using R.
+
+```{r}
+#| label: 2-6
+
+s <- accuracy(arg_fits) %>% pull(RMSE)
+yhat <- forecast(arg_fits, h = 1) %>% pull(.mean)
+
+# SES
+yhat[1] + c(-1, 1) * qnorm(0.975) * s[1]
+## Holt
+yhat[2] + c(-1, 1) * qnorm(0.975) * s[2]
+
+arg_fits %>%
+  forecast(h = 1) %>%
+  mutate(PI = hilo(Exports, level = 95)) %>%
+  pull(PI)
+```
+
+The prediction intervals are similar, but slightly different for both models. The
+ones calculated using R are both larger than the ones calculated by hand, which 
+indicates that the ones calculated by hand may not be 95% PI, but PI with less 
+confidence.
+
+## Australian Arrivals
+For this exercise use the quarterly number of arrivals to Australia from New Zealand, 1981 Q1
+– 2012 Q3, from data set aus_arrivals.
+
+```{r}
+#| label: 3-data
+
+nz_arrivals <- aus_arrivals %>%
+  filter(Origin == "NZ") %>%
+  select(-Origin)
+```
+
+### Part 1
+Make a time plot of your data and describe the main features of the series.
+
+```{r}
+#| label: 3-1
+
+tsplot(as.ts(nz_arrivals), main = "Arrivals to Australia from New Zealand")
+```
+
+ There appears to be some seasonal trend as well as an increasing trend in the 
+ above time series plot. 
+
+### Part 2
+Create a training set that withholds the last two years of available data. Forecast the test set using an appropriate model for Holt-Winters’ multiplicative method.
+
+```{r}
+#| label: 3-2
+
+arrivals_train <- nz_arrivals[1:120,]
+arrivals_test <- nz_arrivals[121:127,]
+
+nz_fit <- arrivals_train %>%
+  model(multi = ETS(error("M") + trend("A") + seasonal("A")))
+```
+
+### Part 3
+Why is multiplicative seasonality necessary here? Forecast the two-year test set using each of
+the following methods:
+
+- an ETS model;
+- an additive ETS model applied to a log transformed series;
+- a seasonal naïve method;
+- an STL decomposition applied to the log transformed data followed by an ETS model applied to the seasonally adjusted (transformed) data.
+
+Which method gives the best forecasts? Does it pass the residual tests?
+
+### Part 4
+Compare the same four methods using time series cross-validation instead of using a training
+and test set. Do you come to the same conclusions?
+
+
+
+
+
+
+
+
+
