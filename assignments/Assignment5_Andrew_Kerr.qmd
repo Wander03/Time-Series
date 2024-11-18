@@ -24,6 +24,7 @@ format:
 
 library(astsa)
 library(fpp3)
+library(kableExtra)
 ```
 
 ## Simulating Seasonal Arima models
@@ -62,6 +63,8 @@ par(mfrow = c(1,2))
 acf(sim_sarima_10)
 pacf(sim_sarima_10)
 ```
+
+The ACF and PACF do not suggest that this data comes from the model I simulated from. This is because there are too few observations to do a time series analysis.
 
 ### Part 3
 Repeat parts 1 and 2, but increasing the number of data points to 100 and 1000. Are the
@@ -109,6 +112,8 @@ pacf(sim_sarima_100)
 acf(sim_sarima_1000)
 pacf(sim_sarima_1000)
 ```
+
+The patterns in the ACF and PACF are easier to identify with more observations!
 
 ## Exports
 Data set global_economy contains the annual Exports from many countries. Work with data
@@ -171,9 +176,9 @@ arg_fits <- arg_exports %>%
   model(ann = ETS(Exports ~ error("A") + trend("N") + season("N")),
         aan = ETS(Exports ~ error("A") + trend("A") + season("N")))
 
-tidy(arg_fits)
+tidy(arg_fits) %>% kable()
 
-accuracy(arg_fits)
+accuracy(arg_fits) %>% kable()
 ```
 
 The AAN model needs to estimate two additional terms, beta ad b[0], making it a 
@@ -248,8 +253,8 @@ Make a time plot of your data and describe the main features of the series.
 tsplot(as.ts(nz_arrivals), main = "Arrivals to Australia from New Zealand")
 ```
 
- There appears to be some seasonal trend as well as an increasing trend in the 
- above time series plot. 
+There appears to be some seasonal trend as well as an increasing trend in the 
+above time series plot. 
 
 ### Part 2
 Create a training set that withholds the last two years of available data. Forecast the test set using an appropriate model for Holt-Winters’ multiplicative method.
@@ -261,7 +266,16 @@ arrivals_train <- nz_arrivals[1:120,]
 arrivals_test <- nz_arrivals[121:127,]
 
 nz_fit <- arrivals_train %>%
-  model(multi = ETS(error("M") + trend("A") + seasonal("A")))
+  model(multi = ETS(Arrivals ~ error("M") + trend("A") + season("A")))
+
+nz_fc <- nz_fit %>%
+  forecast(arrivals_test)
+
+nz_fc %>%
+  autoplot(arrivals_test) +
+  theme_bw() +
+  labs(title = "New Zealand Arrivals Forecast",
+       subtitle = "2011 - 2012")
 ```
 
 ### Part 3
@@ -275,15 +289,75 @@ the following methods:
 
 Which method gives the best forecasts? Does it pass the residual tests?
 
+```{r}
+#| label: 3-3
+
+train_fits <- arrivals_train %>%
+  model(
+    hw = ETS(Arrivals ~ error("M") + trend("A") + season("M")),
+    hwdamped = ETS(Arrivals ~ error("M") + trend("Ad") + season("M")),
+    snaive = SNAIVE(Arrivals),
+    log_ets = ETS(log(Arrivals)),
+    stl = decomposition_model(STL(log(Arrivals)), ETS(season_adjust))
+    ) 
+
+train_fits %>%
+  forecast(h = 3) %>%
+  accuracy(arrivals_test) %>% 
+  kable()
+```
+
+The best model according to RMSE is the snaive model!
+
+```{r}
+#| label: 3-3-2
+#| warning: false
+
+train_fits %>%
+  select("snaive") %>%
+  gg_tsresiduals()
+```
+
+Although the residuals appear to follow a normal distribution, the ACF does not appear to be white noise.
+
 ### Part 4
 Compare the same four methods using time series cross-validation instead of using a training
 and test set. Do you come to the same conclusions?
 
+```{r}
+#| label: 3-4
 
+nz_arrivals_cv <- nz_arrivals %>%
+  slice(1:(n() - 3)) %>% ## hold out 3 to forecast
+  stretch_tsibble(.init = 36, .step = 3)
 
+cv_fits <- nz_arrivals_cv %>%
+  model(
+    hw = ETS(Arrivals ~ error("M") + trend("A") + season("M")),
+    hwdamped = ETS(Arrivals ~ error("M") + trend("Ad") + season("M")),
+    snaive = SNAIVE(Arrivals),
+    log_ets = ETS(log(Arrivals)),
+    stl = decomposition_model(STL(log(Arrivals)), ETS(season_adjust))
+    ) 
 
+cv_fits %>%
+  forecast(h = 3) %>%
+  accuracy(nz_arrivals) %>% 
+  kable()
+```
 
+According to RMSE, the best model is now the hw model!
 
+```{r}
+#| label: 3-4-2
+#| warning: false
 
+cv_fits %>%
+  select("hw") %>%
+  filter(.id == max(.id)) %>%
+  gg_tsresiduals()
+```
 
+The residuals looks normal and the ACF looks like white noise! The best model 
+from cross-validation is better than the one from a simple train-test split.
 
