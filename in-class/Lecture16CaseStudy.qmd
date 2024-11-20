@@ -1,0 +1,188 @@
+---
+title: Lecture 16 Case Study
+author: Julia Schedler
+format: html
+execute:
+  echo: true
+code-fold: show
+slide-number: true
+scrollable: true
+---
+
+Case Study
+
+Consider the Cement production from the aus_production data set.
+
+```{r}
+#| message: false
+
+library(tidyverse)
+library(astsa)
+library(fpp3)
+```
+
+```{r}
+cement <- aus_production %>%
+  select(Quarter, Cement)
+```
+
+Activity 1: Preliminary analysis
+
+•	Produce a time series plot of the cement data
+
+•	What are the beginning and ending dates for the time series?
+
+•	What are the units for the cement production?
+
+•	Propose an ETS model and an (S)ARIMA model for the data only based on the time series plot
+
+```{r}
+tsplot(as.ts(cement))
+
+fits <- cement %>%
+  model(
+    ets_model = ETS(Cement ~ error("M") + trend("Ad") + season("M")),
+    sarima_model = ARIMA(Cement ~ pdq(0, 0, 0) + PDQ(0, 0, 0)) 
+    # Cant tell from plot alone, but definitely an increasing trend for a seasonal model
+)
+```
+
+Activity 2: (S)ARIMA model
+
+-   Follow the flow chart for “choose the model order yourself”
+
+-   Identify p, d, q, P, D, Q, S as well as any transformations needed
+
+```{r}
+# tsplot(diff(box_cox(as.ts(cement), 0), 4))
+# tsplot(diff(diff(box_cox(as.ts(cement), 0), 4)))
+# tsplot(diff(diff(diff(box_cox(as.ts(cement), 0), 4))))
+
+# trans_cement <- diff(diff(box_cox(as.ts(cement), 0), 4))
+# trans_cement_2 <- diff(diff(diff(box_cox(as.ts(cement), 0), 4)))
+
+# tells seasonal
+box_cox(as.ts(cement), 0) %>% 
+  as_tsibble() %>% 
+  features(value, unitroot_nsdiffs)
+
+tsplot(diff(box_cox(as.ts(cement), 0), 4))
+
+# tells non-seasonal
+diff(box_cox(as.ts(cement), 0), 4) %>% 
+  as_tsibble() %>% 
+  features(value, unitroot_ndiffs)
+
+trans_cement <- diff(box_cox(as.ts(cement), 0), 4)
+
+par(mfrow = c(1,2))
+acf(trans_cement)
+pacf(trans_cement)
+```
+
+|      | AR(p)                | MA(q)                | ARMA(p,q) |
+|------|----------------------|----------------------|-----------|
+| ACF  | Tails off            | Cuts off after lag q | Tails off |
+| PACF | Cuts off after lag p | Tails off            | Tails off |
+
+Non-seasonal
+ACF: tailing off
+PACF: cutting off after lag 1
+
+Seasonal
+ACF: Neither... tailing off in pseudo-cyclic way --> tailing off
+PACF: Spikes after 2 seasonal periods
+
+- p: 1
+- d: 0
+- q: 0
+- P: 2
+- D: 1
+- Q: 0
+
+Activity 3: Fit models
+
+-   In one call to the model function, fit the following:
+
+    -   The ETS model you proposed
+
+    -   The (S)ARIMA model you selected in activity 2
+
+    -   An automatically chosen ETS model
+
+    -   An automatically chosen SARIMA model
+
+-   Compare the automatically chosen and manually chosen models in terms of order/terms.
+
+    -   Are any of the models equivalent?
+
+-   Examine the residuals of each model.
+
+```{r}
+fits <- cement %>%
+  model(
+    ets_model = ETS(log(Cement) ~ error("M") + trend("Ad") + season("M")),
+    sarima_model = ARIMA(log(Cement) ~ pdq(1, 0, 0) + PDQ(2, 1, 0, period = 4)),
+    auto_ets = ETS(log(Cement)),
+    auto_sarima = ARIMA(log(Cement))
+)
+
+fits
+
+gg_tsresiduals(fits %>% select("ets_model"))
+gg_tsresiduals(fits %>% select("sarima_model"))
+gg_tsresiduals(fits %>% select("auto_sarima"))
+```
+
+CAN ONly USE AIC TO COMPARE MODELS WITH THE SAME DIFFERENCING VALUES
+
+Activity 4: Model selection
+
+-   Fit the same models as activity 3 but with just the data prior to (including 2007) Q4.
+
+-   Are the automatically chosen models the same?
+
+-   Can you make a choice of ETS vs. ARIMA?
+
+-   Examine the residuals of each model
+
+```{r}
+train_cement <- cement %>%
+  filter(Quarter <= yearquarter("2007 Q4"))
+test_cement <- cement %>%
+  filter(Quarter > yearquarter("2007 Q4"))
+
+fits <- train_cement %>%
+  model(
+    ets_model = ETS(log(Cement) ~ error("M") + trend("Ad") + season("M")),
+    sarima_model = ARIMA(log(Cement) ~ pdq(1, 0, 0) + PDQ(2, 1, 0, period = 4)),
+    auto_ets = ETS(log(Cement)),
+    auto_sarima = ARIMA(log(Cement))
+)
+
+fits
+
+# ??
+fits %>%
+  forecast(h = 8) %>%
+  accuracy(cement)
+
+gg_tsresiduals(fits %>% select("auto_ets"))
+gg_tsresiduals(fits %>% select("auto_sarima"))
+```
+
+The auto ets changed but the auto sarima is the same.
+
+Activity 5: Forecast
+
+-   Forecast the remaining data (2008 Q1 and on) for each of the methods.
+
+-   Which model do you think is best?
+
+```{r}
+fits %>%
+  select("auto_ets", "auto_sarima") %>%
+  forecast(test_cement) %>%
+  autoplot(test_cement, level = F) +
+  theme_bw()
+```
