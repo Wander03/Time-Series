@@ -1,0 +1,238 @@
+---
+title: Assignment 6
+author: Andrew Kerr
+format: 
+  html:
+    code-fold: true
+    toc: true
+    toc-title: "Outline"
+    toc-depth: 3
+    code-line-numbers: true
+    code-tools: true
+    self-contained: true
+    embed-resources: true
+    theme:
+      light: flatly
+      dark: darkly
+    default: dark
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+#| label: lib
+#| include: false
+#| message: false
+
+library(tidyverse)
+library(scales)
+library(astsa)
+library(fpp3)
+library(kableExtra)
+```
+
+## Part 1
+
+Produce a well-labeled plot of `Cement` variable in the `aus_production`
+data set (load the `fpp3` package to access it). Comment on properties
+of the time series (trend, seasonality, etc.) and summarize any
+preliminary choices of model based on your comments.
+
+```{r}
+#| label: p1
+
+cement <- aus_production %>%
+  select(Quarter, Cement)
+
+cement %>%
+  ggplot(aes(x = Quarter, y = Cement)) +
+  geom_line() +
+  theme_bw() +
+  scale_y_continuous(labels = label_number(scale = 1e-3, suffix = "k")) +
+  labs(
+    x = NULL,
+    y = "Tons of Cement",
+    title = "Portland Cement Production",
+    subtitle = "1956 Q1 - 2010 Q2"
+  )
+```
+
+The above time series appears to have an increasing trend with some
+seasonal properties. The amplitude of the seasonal patters appears to
+increase over time, suggesting a multiplicative rather than additive
+component. I would suggest an ETS or SARIMA model with a log
+transformation applied to the data.
+
+## Part 2
+
+Propose an ETS model for the series. Justify your choice of each
+component (e.g. additive, multiplicative, etc.)
+
+ETS(
+
+-   error = multiplicative; The variance increases over time 
+-   trend = additive; As time goes on, there is an increase in cement production
+-   season = multiplicative; The amplitude of the cyclic pattern appears
+    to increase as time goes on
+
+)
+
+## Part 3
+
+Propose an ARIMA model for the series, including any transformations you
+might need. Justify your choice of model based on the "select model
+order yourself" side of the
+[flowchart](https://otexts.com/fpp3/arima-r.html#fig:arimaflowchart).
+Include a time series plot of the possibly transformed and differenced
+data, as well as an ACF and PACF. **Do not include more than these 3
+plots**.
+
+```{r}
+#| label: p3
+
+# tells seasonal differencing
+box_cox(as.ts(cement), 0) %>% 
+  as_tsibble() %>% 
+  features(value, unitroot_nsdiffs)
+
+# tells non-seasonal differencing
+diff(box_cox(as.ts(cement), 0), 4) %>% 
+  as_tsibble() %>% 
+  features(value, unitroot_ndiffs)
+
+trans_cement <- diff(box_cox(as.ts(cement), 0), 4)
+
+tsplot(trans_cement)
+
+par(mfrow = c(1,2))
+acf(trans_cement)
+pacf(trans_cement)
+```
+
+|      | AR(p)                | MA(q)                | ARMA(p,q) |
+|------|----------------------|----------------------|-----------|
+| ACF  | Tails off            | Cuts off after lag q | Tails off |
+| PACF | Cuts off after lag p | Tails off            | Tails off |
+
+Non-seasonal
+ACF: tailing off
+PACF: cutting off after lag 1
+
+Seasonal
+ACF: Neither... tailing off in pseudo-cyclic way --> tailing off
+PACF: Spikes after 2 seasonal periods
+
+- p: 1
+- d: 0
+- q: 0
+- P: 2
+- D: 1
+- Q: 0
+
+## Part 4
+
+Using one call to the `model` function, fit the following models:
+
+-   The ETS model you proposed
+
+-   The (S)ARIMA model you proposed
+
+-   An automatically chosen ETS model
+
+-   An automatically chosen SARIMA model
+
+```{r}
+#| label: fits
+
+fits <- cement %>%
+  model(
+    ets_model = ETS(log(Cement) ~ error("M") + trend("Ad") + season("M")),
+    sarima_model = ARIMA(log(Cement) ~ pdq(1, 0, 0) + PDQ(2, 1, 0, period = 4)),
+    auto_ets = ETS(log(Cement)),
+    auto_sarima = ARIMA(log(Cement))
+)
+```
+
+Then, complete/answer the following:
+
+-   Summarize the number of parameters in each model.
+
+```{r}
+fits
+```
+
+-   Forecast the remaining data (2008 Q1 and on) for each of the
+    methods.
+
+-   Which model is best? Which error criteria are you using?
+
+## Part 5
+
+Repeat the model fitting portion of part but with just the data prior to
+(including) 2007 Q4.
+
+-   Are the automatically chosen models the same?
+
+-   Can you make a choice of ETS vs. ARIMA?
+
+-   Choose the best model, justify your choice, and check the residuals.
+    Comment on the residuals.
+
+## Part 7
+
+Using the log of the Cement, fit an ETS(A,A,N) to the log of the data
+and the equivalent ARIMA model given in [Section 9.10 of
+FPP3](https://otexts.com/fpp3/arima-ets.html#tab:etsarima) (note: you
+will need to force a nonseasonal model or you will get a warning that
+says there are no ARIMA models to choose from).
+
+-   Verify the equations for the equivalence in the table. Are the
+    equations exactly satisfied, or approximate?
+
+-   Explain the definition of `ARIMA_exact`. You may need to look at the
+    `fixed` argument to the `pdq` function in the `ARIMA` function
+    documentation
+
+-   Is the underlying model shared by these three functions a good fit
+    to the data?
+
+```{r}
+#| label: Part-5
+#| collapse: true
+
+library(fpp3)
+cement <- aus_production |> select(Cement)
+ets_coefs <- cement |>
+  filter(Quarter <= yearquarter("2007 Q4")) |> 
+  model(
+    ETS = ETS(log(Cement) ~ error("A") + trend("A") + season("N"))) |> coef()
+
+fits_equivalent <- cement |>
+  filter(Quarter <= yearquarter("2007 Q4")) |> 
+  model(
+    ETS = ETS(log(Cement) ~ error("A") + trend("A") + season("N")),
+    ARIMA= ARIMA(log(Cement) ~ 0 +  pdq(0,2,2) + PDQ(0,0,0)),
+    ARIMA_exact = ARIMA(log(Cement)~ 0 + pdq(p = 0, d = 2, q = 2,
+                                       fixed = list(ma1 = ets_coefs[1,3]+ 
+                                                      ets_coefs[2,3]-2,
+                                                    ma2 = 1- ets_coefs[1,3])) + 
+                          PDQ(0,0,0))
+  )
+
+
+fits_equivalent |> coef() |> select(.model, term, estimate)|> pivot_wider(names_from = .model, values_from = estimate) 
+
+fits_equivalent |> 
+  select(ETS) |> coef() |> as_tibble() |> select(term, estimate) |> 
+  pivot_wider(names_from =  term, values_from = estimate) |>
+  mutate(ma1 = alpha + beta -2, ma2 = 1-alpha) |> select(ma1, ma2) 
+
+## add rows 
+fits_equivalent |> 
+  select(ARIMA, ARIMA_exact) |> coef() |> select(.model, term, estimate)
+  
+fits_equivalent |> forecast(h = 8) |> as_tibble() |> arrange(Quarter)
+
+fits_equivalent |> forecast(h = 8) |> accuracy(cement)
+```
