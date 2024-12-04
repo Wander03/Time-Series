@@ -29,6 +29,7 @@ library(tidyverse)
 library(scales)
 library(astsa)
 library(fpp3)
+library(magrittr)
 library(kableExtra)
 ```
 
@@ -71,8 +72,9 @@ component (e.g. additive, multiplicative, etc.)
 
 ETS(
 
--   error = multiplicative; The variance increases over time 
--   trend = additive; As time goes on, there is an increase in cement production
+-   error = multiplicative; The variance increases over time
+-   trend = additive; As time goes on, there is an increase in cement
+    production
 -   season = multiplicative; The amplitude of the cyclic pattern appears
     to increase as time goes on
 
@@ -115,20 +117,17 @@ pacf(trans_cement)
 | ACF  | Tails off            | Cuts off after lag q | Tails off |
 | PACF | Cuts off after lag p | Tails off            | Tails off |
 
-Non-seasonal
-ACF: tailing off
-PACF: cutting off after lag 1
+Non-seasonal ACF: tailing off PACF: cutting off after lag 1
 
-Seasonal
-ACF: Neither... tailing off in pseudo-cyclic way --> tailing off
-PACF: Spikes after 2 seasonal periods
+Seasonal ACF: Neither... tailing off in pseudo-cyclic way --\> tailing
+off PACF: Spikes after 2 seasonal periods
 
-- p: 1
-- d: 0
-- q: 0
-- P: 2
-- D: 1
-- Q: 0
+-   p: 1
+-   d: 0
+-   q: 0
+-   P: 2
+-   D: 1
+-   Q: 0
 
 ## Part 4
 
@@ -159,25 +158,154 @@ Then, complete/answer the following:
 -   Summarize the number of parameters in each model.
 
 ```{r}
-fits
+#| label: sumariase_fits
+
+fits %>%
+  select(ets_model) %>%
+  report() %>%
+  coefficients()
+
+fits %>%
+  select(sarima_model) %>%
+  report() %>%
+  coefficients()
+
+fits %>%
+  select(auto_sarima) %>%
+  report() %>%
+  coefficients()
 ```
 
--   Forecast the remaining data (2008 Q1 and on) for each of the
-    methods.
+ETS models (manual and automatic are the same): 4 smoothing parameters +
+6 initial states = 10
+
+sarima model: AR(1) + SAR(2) + drift = 4
+
+auto sarima model: AR(1) + MA(2) + SMA(2) + drift = 6
+
+-   Forecast 8 steps ahead for each of the methods.
+
+```{r}
+#| label: forecast-fits
+
+fc_fits <- fits %>%
+  forecast(h = 8)
+```
 
 -   Which model is best? Which error criteria are you using?
+
+```{r}
+#| label: examine-fits
+
+gg_tsresiduals(fits %>% select("ets_model"))
+gg_tsresiduals(fits %>% select("sarima_model"))
+gg_tsresiduals(fits %>% select("auto_sarima"))
+```
+
+Since we can not check our forecasts since we have no holdout data, and we 
+cannot compare the AICc of the models, I will look at the residuals. The ACF of
+all four models does not appear to be white noise, but the auto sarima model
+looks the best with only two "lag bars" being too tall. 
 
 ## Part 5
 
 Repeat the model fitting portion of part but with just the data prior to
 (including) 2007 Q4.
 
+```{r}
+#| label: fits2
+
+cement_07 <- cement %>%
+  filter_index(. ~ "2007 Q4")
+
+fits_07 <- cement_07 %>%
+  model(
+    ets_model = ETS(log(Cement) ~ error("M") + trend("Ad") + season("M")),
+    sarima_model = ARIMA(log(Cement) ~ pdq(1, 0, 0) + PDQ(2, 1, 0, period = 4)),
+    auto_ets = ETS(log(Cement)),
+    auto_sarima = ARIMA(log(Cement))
+)
+```
+
 -   Are the automatically chosen models the same?
+
+```{r}
+#| label: check_fits2
+
+fits_07
+```
+
+No, the auto ETS model has an additive error and season rather than multiplicative
+while the auto SARIMA increased its AR from 1 to 2, decreased its MA from 2 to 1, 
+and decreased its SMA from 2 to 1.
 
 -   Can you make a choice of ETS vs. ARIMA?
 
+We cannot use AICc to compare between the two models
+
+-   Forecast the remaining data, and compute the accuracy of each.
+
+```{r}
+#| label: forecase_fits2
+
+fits_07 %>%
+  forecast(h = 10) %>%
+  accuracy(cement)
+```
+
+Looking at RMSE, the manual ETS model has the smallest value! This is followed
+by the auto ETS model, then by the two SARIMA models.
+
 -   Choose the best model, justify your choice, and check the residuals.
     Comment on the residuals.
+
+```{r}
+#| label: best-fit
+
+gg_tsresiduals(fits_07 %>% select("ets_model"))
+```
+
+I selected the model with the smallest RMSE value from above. Looking at the 
+residuals, the time series appears stationary, however the ACF 
+does not look like white noise with 3 lag values being too large. 
+
+## Part 6
+
+-   Use time series cross-validation to fit the four models from part 3.
+
+```{r}
+#| lable: CV
+
+cement_cv <- cement %>%
+  slice(1:(n() - 10)) %>%
+  stretch_tsibble(.init = 30, .step = 10)
+
+fits_cv <- cement_cv %>%
+  model(
+    ets_model = ETS(log(Cement) ~ error("M") + trend("Ad") + season("M")),
+    sarima_model = ARIMA(log(Cement) ~ pdq(1, 0, 0) + PDQ(2, 1, 0, period = 4)),
+    auto_ets = ETS(log(Cement)),
+    auto_sarima = ARIMA(log(Cement))
+)
+```
+
+-   Compute the accuracy statistics for these cross-validated models.
+
+```{r}
+#| label: fit-cv
+
+fits_cv %>%
+  forecast(h = 10) %>%
+  accuracy(cement)
+```
+
+-   Compare and contrast the steps you took in parts 4, 5, and 6.
+
+In all three parts we fit the models to data, but in parts 5 and 6 we did some 
+pre-processing to that data. In part 5 we held some out, while in part 6 we did
+a lot of "mini holdouts". Both parts 5 and 6 forecasted on data we could check, 
+while part 4 forecasted completely new data making it impossible to 
+compare the performance of the models.
 
 ## Part 7
 
@@ -190,15 +318,22 @@ says there are no ARIMA models to choose from).
 -   Verify the equations for the equivalence in the table. Are the
     equations exactly satisfied, or approximate?
 
+If they are exact, then $\theta_1 = \alpha + \beta - 2$ and $\theta_2 = 1 - \alpha$.
+We see that $\alpha + \beta - 2 = -1.629897$ while $\theta_1 = -1.6190177$, not exact.
+The same goes for $\theta_2$.
+
 -   Explain the definition of `ARIMA_exact`. You may need to look at the
     `fixed` argument to the `pdq` function in the `ARIMA` function
     documentation
+
+ARIMA_exact is forcing the coefficients in the ARIMA model to be those from the
+ETS model rather than estimating them from the data.
 
 -   Is the underlying model shared by these three functions a good fit
     to the data?
 
 ```{r}
-#| label: Part-5
+#| label: Part-7
 #| collapse: true
 
 library(fpp3)
