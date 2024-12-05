@@ -119,8 +119,9 @@ pacf(trans_cement)
 
 Non-seasonal ACF: tailing off PACF: cutting off after lag 1
 
-Seasonal ACF: Neither... tailing off in pseudo-cyclic way --\> tailing
-off PACF: Spikes after 2 seasonal periods
+Seasonal ACF: Neither... tailing off in pseudo-cyclic way --\> tailing off 
+
+PACF: Spikes after 2 seasonal periods
 
 -   p: 1
 -   d: 0
@@ -163,17 +164,20 @@ Then, complete/answer the following:
 fits %>%
   select(ets_model) %>%
   report() %>%
-  coefficients()
+  coefficients() %>%
+  kable()
 
 fits %>%
   select(sarima_model) %>%
   report() %>%
-  coefficients()
+  coefficients() %>%
+  kable()
 
 fits %>%
   select(auto_sarima) %>%
   report() %>%
-  coefficients()
+  coefficients() %>%
+  kable()
 ```
 
 ETS models (manual and automatic are the same): 4 smoothing parameters +
@@ -232,7 +236,8 @@ fits_07 <- cement_07 %>%
 ```{r}
 #| label: check_fits2
 
-fits_07
+fits_07 %>%
+  kable()
 ```
 
 No, the auto ETS model has an additive error and season rather than multiplicative
@@ -250,7 +255,8 @@ We cannot use AICc to compare between the two models
 
 fits_07 %>%
   forecast(h = 10) %>%
-  accuracy(cement)
+  accuracy(cement) %>%
+  kable()
 ```
 
 Looking at RMSE, the manual ETS model has the smallest value! This is followed
@@ -296,7 +302,8 @@ fits_cv <- cement_cv %>%
 
 fits_cv %>%
   forecast(h = 10) %>%
-  accuracy(cement)
+  accuracy(cement) %>%
+  kable()
 ```
 
 -   Compare and contrast the steps you took in parts 4, 5, and 6.
@@ -331,6 +338,10 @@ ETS model rather than estimating them from the data.
 
 -   Is the underlying model shared by these three functions a good fit
     to the data?
+
+Compared to our models from previous parts, the underlying model here is not
+as good of a fit. This can be seen by comparing the RMSE values, with the values
+for these models being slightly larger.
 
 ```{r}
 #| label: Part-7
